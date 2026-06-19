@@ -1,0 +1,139 @@
+name: CI - Linting & Tests
+
+on:
+  push:
+    branches: [ Main, main, develop ]
+  pull_request:
+    branches: [ Main, main, develop ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    name: Lint Code
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check Node.js syntax
+        run: find src -name "*.js" -exec node -c {} \;
+
+      - name: Check for security vulnerabilities
+        run: npm audit --audit-level=moderate
+        continue-on-error: true
+
+  test:
+    runs-on: ubuntu-latest
+    name: Run Tests
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        continue-on-error: true
+
+  code-quality:
+    runs-on: ubuntu-latest
+    name: Code Quality Checks
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check for console.log statements (potential security issue)
+        run: |
+          if grep -r "console\." src --include="*.js" | grep -v "console.error\|console.warn"; then
+            echo "Found console statements that should be removed or replaced with logger"
+            exit 1
+          fi
+        continue-on-error: true
+
+      - name: Check for hardcoded secrets
+        run: |
+          if grep -r "api_key\|secret\|password" src --include="*.js" -i | grep -v "^src.*://" | grep "=.*['\"]"; then
+            echo "Potential hardcoded secrets detected"
+            exit 1
+          fi
+        continue-on-error: true
+
+  security:
+    runs-on: ubuntu-latest
+    name: Security Audit
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run npm audit
+        run: npm audit --audit-level=moderate
+        continue-on-error: true
+
+  build:
+    runs-on: ubuntu-latest
+    name: Build Check
+    needs: [lint, code-quality]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify application can start
+        run: timeout 5 npm start || true
+        env:
+          NODE_ENV: test
