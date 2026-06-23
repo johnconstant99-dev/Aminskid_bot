@@ -1,10 +1,30 @@
+# Dependencies
 node_modules/
+
+# Environment / Secrets
 .env
+.env.local
+.env.*.local
+dotenv
+secrets/
+*.pem
+*.key
+
+# Logs
 *.log
-.DS_Store
+logs/
+
+# Build / Output
 dist/
+build/
 coverage/
+
+# IDE / Editor
 .vscode/
 .idea/
 *.swp
 *.swo
+
+# OS
+.DS_Store
+Thumbs.db
