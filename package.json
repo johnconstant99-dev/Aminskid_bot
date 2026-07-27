@@ -20,7 +20,7 @@
   "dependencies": {
     "telegraf": "^4.15.0",
     "express": "^5.2.1",
-    "plaid": "^18.0.0",
+    "plaid": "^45.0.0",
     "pg": "^8.22.0",
     "dotenv": "^17.4.2",
     "express-rate-limit": "^8.5.2",
